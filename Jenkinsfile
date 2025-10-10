@@ -42,19 +42,16 @@ pipeline {
       agent { docker { image 'node:16' } }
       steps {
         withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
-          sh 'npm i -g snyk'
-          sh 'snyk auth "$SNYK_TOKEN"'
-          script {
-            def code = sh(script: 'snyk test --severity-threshold=high --json > snyk-deps.json', returnStatus: true)
-            archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
-            if (code != 0) {
-              error 'High/Critical dependency vulnerabilities found.'
-            }
-          }
-        }
+          sh '''
+            npm i -g snyk
+            snyk config set api="$SNYK_TOKEN"
+            snyk test --severity-threshold=high --json > snyk-deps.json || exit 1
+          '''
+          archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
+        } 
       }
     }
-
+    
     stage('Build Image') {
       agent any
       steps {
@@ -99,8 +96,10 @@ pipeline {
 
   post {
     always {
-      sh 'docker logout || true'
-      cleanWs(deleteDirs: true, notFailBuild: true)
+      node {
+        sh 'docker logout || true'
+        cleanWs(deleteDirs: true, notFailBuild: true)
+      }
     }
     success { echo "Pushed ${IMAGE_REPO}:${IMAGE_TAG}" }
     failure { echo "Pipeline failed" }
