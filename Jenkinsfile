@@ -36,7 +36,7 @@ pipeline {
       steps {
         sh 'npm ci || npm install'
         sh 'npm test || true'
-        echo "tests completed"'
+        echo "tests completed"
       }
     }
 
