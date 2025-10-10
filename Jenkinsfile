@@ -99,6 +99,7 @@ pipeline {
       node('built-in') {
         sh 'docker logout || true'
         cleanWs(deleteDirs: true, notFailBuild: true)
+        archiveArtifacts artifacts: '**/*.log, **/*.json, **/*.html, allowEmptyArchive: true
       }
     }
     success { echo "Pushed ${IMAGE_REPO}:${IMAGE_TAG}" }
