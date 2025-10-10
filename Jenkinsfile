@@ -44,26 +44,33 @@ pipeline {
     }
 
     stage('Dependency Scan (Snyk)') {
-      agent { docker { image 'node:16' } }
       steps {
-        withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
+        script {
+          docker.image('node:16').inside('-u root:root') {
+          withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
           sh '''
-            npm i -g snyk
+            set -e
+            npm i -g snyk@latest
+
+            # Make sure token is visible to Snyk inside the container
             snyk config set api="$SNYK_TOKEN"
-            snyk test --severity-threshold=critical --json > snyk-deps.json  
-            SNYK_EXIT_CODE=$?
-            if [ $SNYK_EXIT_CODE -ne 0 ]; then
-              echo "High vulnerabilities found" 
-            else
-              echo "High vulnerabilities not found."
-            fi
+
+            # Run scan without failing the shell immediately
+            set +e
+            snyk test --file=package.json --package-manager=npm \
+              --severity-threshold=critical --json > snyk-deps.json
+            SNYK_EXIT=$?
+            set -e
+
+            echo "SNYK_EXIT_CODE=$SNYK_EXIT"
           '''
-          archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
-          echo "Dependency scan completed."
         }
       }
     }
+  }
 
+}
+    
     stage('Build Image') {
       agent any
       steps {
@@ -106,15 +113,25 @@ pipeline {
     }
   }
 
+  
   post {
     always {
-      node('built-in') {
-        sh 'docker logout || true'
-        cleanWs(deleteDirs: true, notFailBuild: true)
-        archiveArtifacts artifacts: '**/snyk*.log, **/snyk*.json,**/test-results.log, **/build.log', allowEmptyArchive: true, fingerprint: true
+      archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
+      script {
+        // Read the exit code we echoed
+        def code = sh(script: "grep -o '[0-9]\\+\$' <(echo $SNYK_EXIT_CODE) 2>/dev/null || echo 2", returnStdout: true).trim()
+        if (code == '0') {
+          echo 'Snyk: no issues at/above threshold.'
+        } else if (code == '1') {
+          echo 'Snyk: vulnerabilities found at/above threshold.'
+          currentBuild.result = 'FAILURE'   // Task 3: expected fail
+        } else {
+          echo 'Snyk: CLI error (exit 2). Marking build UNSTABLE so later stages can still run.'
+          currentBuild.result = 'UNSTABLE'
+        }
       }
     }
-    success { echo "Pushed ${IMAGE_REPO}:${IMAGE_TAG}" }
-    failure { echo 'Pipeline failed' }
   }
 }
+  
+ 
