@@ -12,20 +12,20 @@ pipeline {
     DOCKER_HOST       = 'tcp://docker:2376'
     DOCKER_TLS_VERIFY = '1'
     DOCKER_CERT_PATH  = '/certs/client'
-    IMAGE_REPO        = 'https://github.com/karmaYigzin/aws-elastic-beanstalk-express-js-sample.git'  
+    IMAGE_REPO        = 'https://github.com/karmaYigzin/aws-elastic-beanstalk-express-js-sample.git' 
     IMAGE_TAG         = "${env.BUILD_NUMBER}"
   }
 
   stages {
     stage('Checkout') {
-     agent any
+      agent any
       steps {
         checkout scm
         script {
-          env.GIT_COMMIT       = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
-          env.GIT_COMMIT_SHORT = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
-          env.BRANCH_NAME      = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-          env.IMAGE_TAG        = env.GIT_COMMIT_SHORT
+          env.GIT_COMMIT        = sh(script: 'git rev-parse HEAD',              returnStdout: true).trim()
+          env.GIT_COMMIT_SHORT  = sh(script: 'git rev-parse --short=7 HEAD',    returnStdout: true).trim()
+          env.BRANCH_NAME       = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+          env.IMAGE_TAG         = env.GIT_COMMIT_SHORT
         }
       }
     }
@@ -48,15 +48,14 @@ pipeline {
             snyk test --severity-threshold=high --json > snyk-deps.json || exit 1
           '''
           archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
-        } 
+        }
       }
     }
-    
+
     stage('Build Image') {
       agent any
       steps {
         sh '''
-          which docker
           docker version
           docker build -t ${IMAGE_REPO}:${IMAGE_TAG} .
           docker tag ${IMAGE_REPO}:${IMAGE_TAG} ${IMAGE_REPO}:latest
@@ -86,7 +85,8 @@ pipeline {
             docker run --rm \
               -e SNYK_TOKEN="$SNYK_TOKEN" \
               -v /var/run/docker.sock:/var/run/docker.sock \
-              snyk/snyk:docker container test ${IMAGE_REPO}:${IMAGE_TAG} --severity-threshold=high --json > snyk-container.json || exit 1
+              snyk/snyk:docker container test ${IMAGE_REPO}:${IMAGE_TAG} \
+              --severity-threshold=high --json > snyk-container.json || exit 1
           '''
           archiveArtifacts artifacts: 'snyk-container.json', allowEmptyArchive: true, fingerprint: true
         }
@@ -102,6 +102,6 @@ pipeline {
       }
     }
     success { echo "Pushed ${IMAGE_REPO}:${IMAGE_TAG}" }
-    failure { echo "Pipeline failed" }
+    failure { echo 'Pipeline failed' }
   }
 }
