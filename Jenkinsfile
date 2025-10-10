@@ -12,7 +12,7 @@ pipeline {
     DOCKER_HOST       = 'tcp://docker:2376'
     DOCKER_TLS_VERIFY = '1'
     DOCKER_CERT_PATH  = '/certs/client'
-    IMAGE_REPO        = 'https://github.com/karmaYigzin/aws-elastic-beanstalk-express-js-sample.git' 
+    IMAGE_REPO        = 'yigz/karma_22026392' 
     IMAGE_TAG         = "${env.BUILD_NUMBER}"
   }
 
@@ -54,6 +54,7 @@ pipeline {
               exit 1
             else
               echo "High vulnerabilities not found."
+            fi
           '''
           archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
           echo 'Dependency scan completed.'
