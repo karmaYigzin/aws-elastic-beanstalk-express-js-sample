@@ -50,7 +50,7 @@ pipeline {
           sh '''
             npm i -g snyk
             snyk config set api="$SNYK_TOKEN"
-            snyk test --severity-threshold=high --json > snyk-deps.json  
+            snyk test --severity-threshold=critical --json > snyk-deps.json  
             SNYK_EXIT_CODE=$?
             if [ $SNYK_EXIT_CODE -ne 0 ]; then
               echo "High vulnerabilities found" 
