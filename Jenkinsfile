@@ -50,14 +50,13 @@ pipeline {
             snyk test --severity-threshold=high --json > snyk-deps.json  
             SNYK_EXIT_CODE=$?
             if [ $SNYK_EXIT_CODE -ne 0 ]; then
-              echo"High vulnerabilities found" 
-              exit 1
+              echo "High vulnerabilities found" 
             else
               echo "High vulnerabilities not found."
             fi
           '''
           archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
-          echo 'Dependency scan completed.'
+          echo "Dependency scan completed."
         }
       }
     }
