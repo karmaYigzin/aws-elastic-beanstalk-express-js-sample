@@ -58,7 +58,7 @@ pipeline {
             # Run scan without failing the shell immediately
             set +e
             snyk test --file=package.json --package-manager=npm \
-              --severity-threshold=critical --json > snyk-deps.json
+              --severity-threshold=high --json > snyk-deps.json
             SNYK_EXIT=$?
             set -e
 
@@ -101,8 +101,7 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: 'snyk-token', variable: 'SNYK_TOKEN')]) {
           sh '''
-            docker run --rm \
-              -e SNYK_TOKEN="$SNYK_TOKEN" \
+            docker run --rm -e SNYK_TOKEN="$SNYK_TOKEN" \
               -v /var/run/docker.sock:/var/run/docker.sock \
               snyk/snyk:docker container test ${IMAGE_REPO}:${IMAGE_TAG} \
               --severity-threshold=high --json > snyk-container.json || exit 1
