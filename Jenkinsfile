@@ -103,5 +103,4 @@ pipeline {
     }
     success { echo "Pushed ${IMAGE_REPO}:${IMAGE_TAG}" }
     failure { echo "Pipeline failed" }
-  }
 }
