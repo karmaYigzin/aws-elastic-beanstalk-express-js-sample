@@ -96,7 +96,7 @@ pipeline {
 
   post {
     always {
-      node {
+      node('master') {
         sh 'docker logout || true'
         cleanWs(deleteDirs: true, notFailBuild: true)
       }
