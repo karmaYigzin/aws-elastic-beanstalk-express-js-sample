@@ -5,7 +5,7 @@ pipeline {
     timeout(time: 30, unit: 'MINUTES')
     timestamps()
     skipDefaultCheckout()
-    buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '20'))
+    buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '20', artifactDaysToKeepStr: '14', artifactNumToKeepStr: '10'))
   }
 
   environment {
@@ -26,7 +26,8 @@ pipeline {
           env.GIT_COMMIT_SHORT  = sh(script: 'git rev-parse --short=7 HEAD',    returnStdout: true).trim()
           env.BRANCH_NAME       = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
           env.IMAGE_TAG         = env.GIT_COMMIT_SHORT
-        }
+        } 
+          echo'Checkout completed'
       }
     }
 
@@ -34,7 +35,8 @@ pipeline {
       agent { docker { image 'node:16' } }
       steps {
         sh 'npm ci || npm install'
-        sh 'npm test || echo "No tests found"'
+        sh 'npm test || true'
+        echo "tests completed"'
       }
     }
 
@@ -45,9 +47,16 @@ pipeline {
           sh '''
             npm i -g snyk
             snyk config set api="$SNYK_TOKEN"
-            snyk test --severity-threshold=high --json > snyk-deps.json || exit 1
+            snyk test --severity-threshold=high --json > snyk-deps.json  
+            SNYK_EXIT_CODE=$?
+            if [ $SNYK_EXIT_CODE -ne 0 ]; then
+              echo"High vulnerabilities found" 
+              exit 1
+            else
+              echo "High vulnerabilities not found."
           '''
           archiveArtifacts artifacts: 'snyk-deps.json', allowEmptyArchive: true, fingerprint: true
+          echo 'Dependency scan completed.'
         }
       }
     }
@@ -99,7 +108,7 @@ pipeline {
       node('built-in') {
         sh 'docker logout || true'
         cleanWs(deleteDirs: true, notFailBuild: true)
-        archiveArtifacts artifacts: '**/*.log, **/*.json, **/*.html, allowEmptyArchive: true
+        archiveArtifacts artifacts: '**/snyk*.log, **/snyk*.json,**/test-results.log, **/build.log', allowEmptyArchive: true, fingerprint: true
       }
     }
     success { echo "Pushed ${IMAGE_REPO}:${IMAGE_TAG}" }
