@@ -32,12 +32,15 @@ pipeline {
     }
 
     stage('Install & Test (Node16)') {
-      agent { docker { image 'node:16' } }
       steps {
-        sh 'npm ci || npm install'
-        sh 'npm test || true'
-        echo "tests completed"
-      }
+        script {
+          docker.image('node:16').inside('-u root:root') {
+            sh 'npm ci || npm install'
+            sh 'npm test || true'
+            echo "tests completed"
+          }
+        }
+      }  
     }
 
     stage('Dependency Scan (Snyk)') {
